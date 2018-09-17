@@ -47,8 +47,17 @@ pub fn synthesis(cosine_amplitudes: &[Sample], sine_amplitudes: &[Sample], signa
 		.collect()
 }
 
+pub fn fourier_transform(signal: &[Sample]) -> (Vec<Sample>, Vec<Sample>) {
+	let upper_bound = (signal.len() + 1) / 2;
+	((0..upper_bound).map(|k| (0..signal.len()).map(|i| signal[i] *
+		cosine_basis_single(k as f64, signal.len(), i)).sum()).collect(),
+	 (0..upper_bound).map(|k| (0..signal.len()).map(|i| -signal[i] *
+		 sine_basis_single(k as f64, signal.len(), i)).sum()).collect())
+}
+
 #[cfg(test)]
 mod tests {
+	use crate::math;
 	use super::*;
 
 	#[test]
@@ -59,7 +68,7 @@ mod tests {
 	}
 
 	#[test]
-	fn test_sin_basis() {
+	fn test_sine_basis() {
 		const ZERO_EPSILON: f64 = 0.0000000000001;
 		assert!(sine_basis(0.0, 10).iter().all(|x| x == &0.0));
 		assert!(sine_basis(16.0, 32).iter().all(|x| &-ZERO_EPSILON < x && x < &ZERO_EPSILON));
@@ -68,9 +77,18 @@ mod tests {
 	#[test]
 	fn test_synthesis() {
 		let cosine_amplitudes = [15.0, -2.5, -2.5, -2.5, -2.5];
-		let sine_amplitudes = [0.0, 3.441, 0.8123, -0.8123, -3.441];
+		let sine_amplitudes = [0.0, 3.4409548, 0.81229924, -0.81229924, -3.4409548];
 		let synthesis: Vec<_> = synthesis(&cosine_amplitudes, &sine_amplitudes, 5)
-			.into_iter().map(f64::round).collect();
+			.into_iter().map(math::approximate).collect();
 		assert_eq!(synthesis, vec![1.0, 2.0, 3.0, 4.0, 5.0]);
+	}
+
+	#[test]
+	fn test_fourier_transform() {
+		let signal = [1.0, 2.0, 3.0, 4.0, 5.0];
+		let (cosine_amplitudes, sine_amplitudes) = fourier_transform(&signal);
+		let synthesis: Vec<_> = synthesis(&cosine_amplitudes, &sine_amplitudes, 5)
+			.into_iter().map(math::approximate).collect();
+		assert_eq!(synthesis, signal);
 	}
 }

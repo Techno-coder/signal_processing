@@ -15,6 +15,10 @@ pub fn correlate_single(signal: &[Sample], target: &[Sample], index: usize) -> S
 	output_sample
 }
 
+pub fn correlation(signal: &[Sample], target: &[Sample]) -> f64 {
+	(0..signal.len()).map(|index| correlate_single(signal, target, index)).sum()
+}
+
 #[cfg(test)]
 mod tests {
 	use super::*;
@@ -33,5 +37,12 @@ mod tests {
 		let signal = [0.0, 1.0, 2.0, 5.0, 2.0, 1.0];
 		let target = [1.0, 2.0];
 		assert_eq!(correlate_signal(&signal, &target), vec![2.0, 5.0, 12.0, 9.0, 4.0, 1.0]);
+	}
+
+	#[test]
+	fn test_correlation() {
+		let signal = [0.0, 1.0, 2.0, 5.0, 2.0, 1.0];
+		let target = [1.0, 2.0];
+		assert_eq!(correlation(&signal, &target), vec![2.0, 5.0, 12.0, 9.0, 4.0, 1.0].into_iter().sum());
 	}
 }
