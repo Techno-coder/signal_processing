@@ -12,9 +12,9 @@ pub fn deviation(sample: Sample, mean: f64) -> f64 {
 pub fn variance(samples: &[Sample]) -> f64 {
 	let mean = mean(samples);
 	let square_sum: f64 = samples.iter()
-	                              .map(|x| deviation(*x, mean))
-	                              .map(|x| x * x)
-	                              .sum();
+	                             .map(|x| deviation(*x, mean))
+	                             .map(|x| x * x)
+	                             .sum();
 	square_sum / (samples.len() - 1) as f64
 }
 
