@@ -8,6 +8,8 @@ pub mod statistics;
 pub mod fourier_transform;
 pub mod math;
 pub mod polar;
+pub mod frequency;
+pub mod utility;
 
 pub type Sample = f64;
 pub type IntegralSample = i64;
