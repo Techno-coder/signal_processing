@@ -1,5 +1,6 @@
 use crate::fourier_transform;
-use crate::frequency;
+use crate::frequency::Frequency;
+use crate::rectangular::Rectangular;
 use crate::utility;
 use super::Sample;
 
@@ -38,11 +39,11 @@ pub fn convolve_fourier(mut signal: Vec<Sample>, mut impulse_response: Vec<Sampl
 	let mut cosines = Vec::new();
 	let mut sines = Vec::new();
 	for index in 0..((convolution_length + 1) / 2) {
-		let signal_frequency = (signal_cosines[index], signal_sines[index]);
-		let kernel_frequency = (kernel_cosines[index], kernel_sines[index]);
-		let (cosine, sine) = frequency::multiply_rectangular(signal_frequency, kernel_frequency);
-		cosines.push(cosine);
-		sines.push(sine);
+		let signal_frequency: Frequency<_> = Rectangular { cosine: signal_cosines[index], sine: signal_sines[index] }.into();
+		let kernel_frequency: Frequency<_> = Rectangular { cosine: kernel_cosines[index], sine: kernel_sines[index] }.into();
+		let output_frequency: Frequency<Rectangular> = signal_frequency * kernel_frequency;
+		cosines.push(output_frequency.cosine);
+		sines.push(output_frequency.sine);
 	}
 	fourier_transform::synthesis(&cosines, &sines, convolution_length)
 }

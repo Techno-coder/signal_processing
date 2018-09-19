@@ -1,68 +1,93 @@
-use super::Sample;
+use std::ops;
+use super::polar::Polar;
+use super::rectangular::Rectangular;
 
-/// Multiplies two frequency domain components together
-pub fn multiply_rectangular((a_real, a_imaginary): (Sample, Sample),
-                            (b_real, b_imaginary): (Sample, Sample)) -> (Sample, Sample) {
-	(a_real * b_real - a_imaginary * b_imaginary,
-	 a_imaginary * b_real + a_real * b_imaginary)
+#[derive(Debug, PartialOrd, PartialEq, Copy, Clone)]
+pub struct Frequency<F>(pub F);
+wrapper!(Frequency);
+cross_cast!(Frequency, Rectangular, Polar);
+
+impl ops::Mul for Frequency<Rectangular> {
+	type Output = Frequency<Rectangular>;
+
+	fn mul(self, rhs: Self) -> Self::Output {
+		Self(Rectangular {
+			cosine: self.cosine * rhs.cosine - self.sine * rhs.sine,
+			sine: self.sine * rhs.cosine + self.cosine * rhs.sine,
+		})
+	}
 }
 
-/// Calculates `a / b` where `a` and `b` are part of the frequency domain
-pub fn divide_rectangular((a_real, a_imaginary): (Sample, Sample),
-                          (b_real, b_imaginary): (Sample, Sample)) -> (Sample, Sample) {
-	let denominator = b_real * b_real + b_imaginary * b_imaginary;
-	let real = (a_real * b_real + a_imaginary * b_imaginary) / denominator;
-	let imaginary = (a_imaginary * b_real - a_real * b_imaginary) / denominator;
-	(real, imaginary)
+impl ops::Div for Frequency<Rectangular> {
+	type Output = Frequency<Rectangular>;
+
+	fn div(self, rhs: Self) -> Self::Output {
+		let denominator = rhs.cosine * rhs.cosine + rhs.sine * rhs.sine;
+		let cosine = (self.cosine * rhs.cosine + self.sine * rhs.sine) / denominator;
+		let sine = (self.sine * rhs.cosine - self.cosine * rhs.sine) / denominator;
+		Self(Rectangular { cosine, sine })
+	}
 }
 
-pub fn multiply_polar((a_magnitude, a_phase): (Sample, Sample),
-                      (b_magnitude, b_phase): (Sample, Sample)) -> (Sample, Sample) {
-	(a_magnitude * b_magnitude, a_phase + b_phase)
+impl ops::Mul for Frequency<Polar> {
+	type Output = Frequency<Polar>;
+
+	fn mul(self, rhs: Self) -> Self::Output {
+		Self(Polar {
+			magnitude: self.magnitude * rhs.magnitude,
+			phase: self.phase + rhs.phase,
+		})
+	}
 }
 
-/// Calculates `a / b` where `a` and `b` are part of the frequency domain in polar form
-pub fn divide_polar((a_magnitude, a_phase): (Sample, Sample),
-                    (b_magnitude, b_phase): (Sample, Sample)) -> (Sample, Sample) {
-	(a_magnitude / b_magnitude, a_phase - b_phase)
+impl ops::Div for Frequency<Polar> {
+	type Output = Frequency<Polar>;
+
+	fn div(self, rhs: Self) -> Self::Output {
+		Self(Polar {
+			magnitude: self.magnitude / rhs.magnitude,
+			phase: self.phase - rhs.phase,
+		})
+	}
 }
 
 #[cfg(test)]
 mod tests {
-	use crate::polar;
 	use super::*;
 
 	#[test]
 	fn test_multiply_rectangular() {
-		assert_eq!(multiply_rectangular((1.0, 2.0), (3.0, 4.0)), (-5.0, 10.0));
+		let a = Frequency(Rectangular { cosine: 1.0, sine: 2.0 });
+		let b = Frequency(Rectangular { cosine: 3.0, sine: 4.0 });
+		assert_eq!(a * b, Frequency(Rectangular { cosine: -5.0, sine: 10.0 }));
 	}
 
 	#[test]
 	fn test_divide_rectangular() {
-		let a = (1.0, 2.0);
-		let b = (3.0, 4.0);
-		let c = multiply_rectangular(a, b);
-		assert_eq!(divide_rectangular(c, a), b);
-		assert_eq!(divide_rectangular(c, b), a);
+		let a = Frequency(Rectangular { cosine: 1.0, sine: 2.0 });
+		let b = Frequency(Rectangular { cosine: 3.0, sine: 4.0 });
+		let c = a * b;
+		assert_eq!(c / a, b);
+		assert_eq!(c / b, a);
 	}
 
 	#[test]
 	fn test_multiply_polar() {
-		let a = (1.0, 2.0);
-		let b = (3.0, 4.0);
-		let polar_a = polar::to_polar(a.0, a.1);
-		let polar_b = polar::to_polar(b.0, b.1);
-		let (magnitude, phase) = multiply_polar(polar_a, polar_b);
-		let polar_rectangular = polar::to_rectangular(magnitude, phase);
-		assert_eq!(polar_rectangular, multiply_rectangular(a, b));
+		let a = Frequency(Rectangular { cosine: 1.0, sine: 2.0 });
+		let b = Frequency(Rectangular { cosine: 3.0, sine: 4.0 });
+		let polar_a: Frequency<Polar> = a.into();
+		let polar_b: Frequency<Polar> = b.into();
+		let polar_c: Frequency<Polar> = polar_a * polar_b;
+		let polar_rectangular: Frequency<Rectangular> = polar_c.into();
+		assert_eq!(polar_rectangular, a * b);
 	}
 
 	#[test]
 	fn test_divide_polar() {
-		let a = (1.0, 2.0);
-		let b = (3.0, 4.0);
-		let c = multiply_polar(a, b);
-		assert_eq!(divide_polar(c, a), b);
-		assert_eq!(divide_polar(c, b), a);
+		let a = Frequency(Polar { magnitude: 1.0, phase: 2.0 });
+		let b = Frequency(Polar { magnitude: 3.0, phase: 4.0 });
+		let c = a * b;
+		assert_eq!(c / a, b);
+		assert_eq!(c / b, a);
 	}
 }
