@@ -15,6 +15,13 @@ impl Polar {
 		let multiplier = (previous_phase - self.phase) / (2.0 * consts::PI);
 		self.phase += multiplier.trunc() * 2.0 * consts::PI;
 	}
+
+	pub fn complex_conjugate(&self) -> Polar {
+		Polar {
+			magnitude: self.magnitude,
+			phase: -self.phase,
+		}
+	}
 }
 
 impl From<Rectangular> for Polar {

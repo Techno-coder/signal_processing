@@ -1,3 +1,6 @@
+use super::fourier_transform;
+use super::polar::Polar;
+use super::rectangular::Rectangular;
 use super::Sample;
 
 pub fn correlate_signal(signal: &[Sample], target: &[Sample]) -> Vec<Sample> {
@@ -16,7 +19,21 @@ pub fn correlate_single(signal: &[Sample], target: &[Sample], index: usize) -> S
 }
 
 pub fn correlation(signal: &[Sample], target: &[Sample]) -> f64 {
-	(0..signal.len()).map(|index| correlate_single(signal, target, index)).sum()
+	correlate_fourier(signal, target).iter().sum()
+}
+
+// TODO use fast fourier transform
+pub fn correlate_fourier(signal: &[Sample], target: &[Sample]) -> Vec<Sample> {
+	let signal_frequencies = fourier_transform::analysis(&signal);
+	let target_frequencies = fourier_transform::analysis_padding(&target, signal.len());
+
+	let mut output_frequencies = Vec::new();
+	for index in 0..((signal.len() + 1) / 2) {
+		let target_frequency: Polar = target_frequencies[index].take().into();
+		let target_frequency: Rectangular = target_frequency.complex_conjugate().into();
+		output_frequencies.push(signal_frequencies[index] * target_frequency.into());
+	}
+	fourier_transform::synthesis(&output_frequencies, signal.len())
 }
 
 #[cfg(test)]

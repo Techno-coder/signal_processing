@@ -2,7 +2,6 @@
 
 #[macro_use]
 pub mod type_wrapper;
-pub mod utility;
 pub mod binned_histogram;
 pub mod convolution;
 pub mod correlation;

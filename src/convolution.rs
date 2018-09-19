@@ -1,5 +1,4 @@
 use crate::fourier_transform;
-use crate::utility;
 use super::Sample;
 
 /// Calculates a convolution of a signal
@@ -27,12 +26,10 @@ pub fn convolve_single(signal: &[Sample], impulse_response: &[Sample], index: us
 
 /// Calculates a convolution with discrete fourier transforms
 // TODO use fast fourier transforms
-pub fn convolve_fourier(mut signal: Vec<Sample>, mut impulse_response: Vec<Sample>) -> Vec<Sample> {
+pub fn convolve_fourier(signal: &[Sample], impulse_response: &[Sample]) -> Vec<Sample> {
 	let convolution_length = signal.len() + impulse_response.len() - 1;
-	utility::pad_zeros(&mut signal, convolution_length);
-	utility::pad_zeros(&mut impulse_response, convolution_length);
-	let signal_frequencies = fourier_transform::analysis(&signal);
-	let kernel_frequencies = fourier_transform::analysis(&impulse_response);
+	let signal_frequencies = fourier_transform::analysis_padding(&signal, convolution_length);
+	let kernel_frequencies = fourier_transform::analysis_padding(&impulse_response, convolution_length);
 
 	let frequency_length = (convolution_length + 1) / 2;
 	let output_frequencies: Vec<_> = (0..frequency_length)
@@ -64,9 +61,9 @@ mod tests {
 
 	#[test]
 	fn test_convolve_fourier() {
-		let signal = vec![0.0, 1.0, 2.0, 3.0, 2.0, 0.0];
-		let impulse_response = vec![1.0, 2.0];
-		let convolution: Vec<f64> = convolve_fourier(signal, impulse_response)
+		let signal = [0.0, 1.0, 2.0, 3.0, 2.0, 0.0];
+		let impulse_response = [1.0, 2.0];
+		let convolution: Vec<f64> = convolve_fourier(&signal, &impulse_response)
 			.into_iter().map(math::approximate).collect();
 		assert_eq!(convolution, vec![0.0, 1.0, 2.0 + 2.0, 4.0 + 3.0, 6.0 + 2.0, 4.0, 0.0])
 	}

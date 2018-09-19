@@ -47,10 +47,16 @@ pub fn synthesis(frequencies: &[Frequency<Rectangular>], signal_length: usize) -
 }
 
 pub fn analysis(signal: &[Sample]) -> (Vec<Frequency<Rectangular>>) {
-	let upper_bound = (signal.len() + 1) / 2;
+	analysis_padding(signal, signal.len())
+}
+
+pub fn analysis_padding(signal: &[Sample], signal_length: usize) -> (Vec<Frequency<Rectangular>>) {
+	let upper_bound = (signal_length + 1) / 2;
 	(0..upper_bound).map(|k| {
-		let cosine = (0..signal.len()).map(|i| signal[i] * cosine_basis_single(k as f64, signal.len(), i)).sum();
-		let sine = (0..signal.len()).map(|i| -signal[i] * sine_basis_single(k as f64, signal.len(), i)).sum();
+		let cosine = (0..signal_length).map(|i| signal.get(i).unwrap_or(&0.0) *
+			cosine_basis_single(k as f64, signal_length, i)).sum();
+		let sine = (0..signal_length).map(|i| -signal.get(i).unwrap_or(&0.0) *
+			sine_basis_single(k as f64, signal_length, i)).sum();
 		Rectangular { cosine, sine }.into()
 	}).collect()
 }
