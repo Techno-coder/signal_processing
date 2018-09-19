@@ -1,3 +1,5 @@
+use crate::frequency::Frequency;
+use crate::rectangular::Rectangular;
 use std::f64;
 use std::f64::consts;
 use super::Sample;
@@ -30,29 +32,27 @@ pub fn normalize_sine_amplitude(amplitude: Sample, signal_length: usize) -> Samp
 	-amplitude / (signal_length as f64 / 2.0)
 }
 
-pub fn synthesis(cosine_amplitudes: &[Sample], sine_amplitudes: &[Sample], signal_length: usize) -> Vec<Sample> {
+pub fn synthesis(frequencies: &[Frequency<Rectangular>], signal_length: usize) -> Vec<Sample> {
 	let upper_bound = (signal_length + 1) / 2;
-	assert!(cosine_amplitudes.len() >= upper_bound);
-	assert_eq!(cosine_amplitudes.len(), sine_amplitudes.len());
-	(0..signal_length)
-		.map(|i| {
-			let cosines: f64 = (0..upper_bound)
-				.map(|k| normalize_cosine_amplitude(k as f64, cosine_amplitudes[k], signal_length) *
-					cosine_basis_single(k as f64, signal_length, i)).sum();
-			let sines: f64 = (0..upper_bound)
-				.map(|k| normalize_sine_amplitude(sine_amplitudes[k], signal_length) *
-					sine_basis_single(k as f64, signal_length, i)).sum();
-			cosines + sines
-		})
-		.collect()
+	assert!(frequencies.len() >= upper_bound);
+	(0..signal_length).map(|i| {
+		(0..upper_bound).map(|k| {
+			let cosine = normalize_cosine_amplitude(k as f64, frequencies[k].cosine, signal_length) *
+				cosine_basis_single(k as f64, signal_length, i);
+			let sine = normalize_sine_amplitude(frequencies[k].sine, signal_length) *
+				sine_basis_single(k as f64, signal_length, i);
+			cosine + sine
+		}).sum()
+	}).collect()
 }
 
-pub fn analysis(signal: &[Sample]) -> (Vec<Sample>, Vec<Sample>) {
+pub fn analysis(signal: &[Sample]) -> (Vec<Frequency<Rectangular>>) {
 	let upper_bound = (signal.len() + 1) / 2;
-	((0..upper_bound).map(|k| (0..signal.len()).map(|i| signal[i] *
-		cosine_basis_single(k as f64, signal.len(), i)).sum()).collect(),
-	 (0..upper_bound).map(|k| (0..signal.len()).map(|i| -signal[i] *
-		 sine_basis_single(k as f64, signal.len(), i)).sum()).collect())
+	(0..upper_bound).map(|k| {
+		let cosine = (0..signal.len()).map(|i| signal[i] * cosine_basis_single(k as f64, signal.len(), i)).sum();
+		let sine = (0..signal.len()).map(|i| -signal[i] * sine_basis_single(k as f64, signal.len(), i)).sum();
+		Rectangular { cosine, sine }.into()
+	}).collect()
 }
 
 #[cfg(test)]
@@ -75,9 +75,14 @@ mod tests {
 
 	#[test]
 	fn test_synthesis() {
-		let cosine_amplitudes = [15.0, -2.5, -2.5, -2.5, -2.5];
-		let sine_amplitudes = [0.0, 3.4409548, 0.81229924, -0.81229924, -3.4409548];
-		let synthesis: Vec<_> = synthesis(&cosine_amplitudes, &sine_amplitudes, 5)
+		let frequencies = [
+			Frequency(Rectangular { cosine: 15.0, sine: 0.0 }),
+			Frequency(Rectangular { cosine: -2.5, sine: 3.4409548 }),
+			Frequency(Rectangular { cosine: -2.5, sine: 0.81229924 }),
+			Frequency(Rectangular { cosine: -2.5, sine: -0.81229924 }),
+			Frequency(Rectangular { cosine: -2.5, sine: -3.4409548 }),
+		];
+		let synthesis: Vec<_> = synthesis(&frequencies, 5)
 			.into_iter().map(math::approximate).collect();
 		assert_eq!(synthesis, vec![1.0, 2.0, 3.0, 4.0, 5.0]);
 	}
@@ -85,8 +90,8 @@ mod tests {
 	#[test]
 	fn test_fourier_transform() {
 		let signal = [1.0, 2.0, 3.0, 4.0, 5.0];
-		let (cosine_amplitudes, sine_amplitudes) = analysis(&signal);
-		let synthesis: Vec<_> = synthesis(&cosine_amplitudes, &sine_amplitudes, 5)
+		let frequencies = analysis(&signal);
+		let synthesis: Vec<_> = synthesis(&frequencies, 5)
 			.into_iter().map(math::approximate).collect();
 		assert_eq!(synthesis, signal);
 	}
