@@ -1,9 +1,10 @@
 use crate::polar::Polar;
+use super::Sample;
 
 #[derive(Debug, PartialOrd, PartialEq, Copy, Clone)]
 pub struct Rectangular {
-	pub cosine: f64,
-	pub sine: f64,
+	pub cosine: Sample,
+	pub sine: Sample,
 }
 
 impl From<Polar> for Rectangular {

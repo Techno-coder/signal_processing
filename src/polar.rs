@@ -1,16 +1,17 @@
+use crate::frequency::Frequency;
 use crate::rectangular::Rectangular;
 use std::f64::consts;
 use super::Sample;
 
 #[derive(Debug, PartialOrd, PartialEq, Copy, Clone)]
 pub struct Polar {
-	pub magnitude: f64,
-	pub phase: f64,
+	pub magnitude: Sample,
+	pub phase: Sample,
 }
 
 impl Polar {
 	/// Allow the magnitude to be negative to resolve cutting of the phase
-	pub fn unwrap_phase(&mut self, previous_phase: f64) {
+	pub fn unwrap_phase(&mut self, previous_phase: Sample) {
 		let multiplier = (previous_phase - self.phase) / (2.0 * consts::PI);
 		self.phase += multiplier.trunc() * 2.0 * consts::PI;
 	}
@@ -41,19 +42,16 @@ impl From<Rectangular> for Polar {
 	}
 }
 
-pub fn to_polar_spectrum(cosines: &[Sample], sines: &[Sample]) -> (Vec<Sample>, Vec<Sample>) {
-	assert_eq!(cosines.len(), sines.len());
-	let mut magnitudes = Vec::new();
-	let mut phases = Vec::new();
-	for (cosine, sine) in cosines.iter().zip(sines.iter()) {
-		let mut polar: Polar = Rectangular { cosine: *cosine, sine: *sine }.into();
-		if !phases.is_empty() {
-			polar.unwrap_phase(*phases.last().unwrap());
+pub fn to_polar_spectrum(frequencies: &[Frequency<Rectangular>]) -> Vec<Frequency<Polar>> {
+	let mut previous_phase = None;
+	frequencies.iter().map(|frequency| {
+		let mut polar: Frequency<Polar> = (*frequency).into();
+		if let Some(previous_phase) = previous_phase {
+			polar.unwrap_phase(previous_phase);
 		}
-		magnitudes.push(polar.magnitude);
-		phases.push(polar.phase);
-	}
-	(magnitudes, phases)
+		previous_phase = Some(polar.phase);
+		polar
+	}).collect()
 }
 
 #[cfg(test)]
