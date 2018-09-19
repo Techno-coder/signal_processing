@@ -1,54 +1,64 @@
+use crate::frequency::Frequency;
+use crate::rectangular::Rectangular;
 use std::f64::consts;
 use super::Sample;
 
-/// Converts rectangular to polar form as (Magnitude, Phase)
-pub fn to_polar(real: Sample, imaginary: Sample) -> (Sample, Sample) {
-	let magnitude = (real * real + imaginary * imaginary).sqrt();
-	let phase = if real == 0.0 {
-		if imaginary.is_sign_positive() {
-			consts::FRAC_PI_2
-		} else {
-			-consts::FRAC_PI_2
+#[derive(Debug, PartialOrd, PartialEq, Copy, Clone)]
+pub struct Polar {
+	pub magnitude: Sample,
+	pub phase: Sample,
+}
+
+impl Polar {
+	/// Allow the magnitude to be negative to resolve cutting of the phase
+	pub fn unwrap_phase(&mut self, previous_phase: Sample) {
+		let multiplier = (previous_phase - self.phase) / (2.0 * consts::PI);
+		self.phase += multiplier.trunc() * 2.0 * consts::PI;
+	}
+
+	pub fn complex_conjugate(&self) -> Polar {
+		Polar {
+			magnitude: self.magnitude,
+			phase: -self.phase,
 		}
-	} else {
-		let phase = (imaginary / real).atan();
-		if real.is_sign_negative() {
-			if imaginary.is_sign_negative() {
-				phase - consts::PI
+	}
+}
+
+impl From<Rectangular> for Polar {
+	fn from(other: Rectangular) -> Self {
+		let magnitude = (other.cosine * other.cosine + other.sine * other.sine).sqrt();
+		let phase = if other.cosine == 0.0 {
+			if other.sine.is_sign_positive() {
+				consts::FRAC_PI_2
 			} else {
-				phase + consts::PI
+				-consts::FRAC_PI_2
 			}
 		} else {
-			phase
-		}
-	};
-	(magnitude, phase)
-}
-
-/// Allow the magnitude to be negative to resolve cutting of the phase
-pub fn unwrap_phase(previous_unwrapped: Sample, phase: Sample) -> Sample {
-	let multiplier = (previous_unwrapped - phase) / (2.0 * consts::PI);
-	phase + multiplier.trunc() * 2.0 * consts::PI
-}
-
-/// Converts polar to rectangular form as (Real, Imaginary)
-pub fn to_rectangular(magnitude: Sample, phase: Sample) -> (Sample, Sample) {
-	(magnitude * phase.cos(), magnitude * phase.sin())
-}
-
-pub fn to_polar_spectrum(cosines: &[Sample], sines: &[Sample]) -> (Vec<Sample>, Vec<Sample>) {
-	assert_eq!(cosines.len(), sines.len());
-	let mut magnitudes = Vec::new();
-	let mut phases = Vec::new();
-	for (cosine, sine) in cosines.iter().zip(sines.iter()) {
-		let (magnitude, mut phase) = to_polar(*cosine, *sine);
-		if !phases.is_empty() {
-			phase = unwrap_phase(*phases.last().unwrap(), phase);
-		}
-		magnitudes.push(magnitude);
-		phases.push(phase);
+			let phase = (other.sine / other.cosine).atan();
+			if other.cosine.is_sign_negative() {
+				if other.sine.is_sign_negative() {
+					phase - consts::PI
+				} else {
+					phase + consts::PI
+				}
+			} else {
+				phase
+			}
+		};
+		Polar { magnitude, phase }
 	}
-	(magnitudes, phases)
+}
+
+pub fn to_polar_spectrum(frequencies: &[Frequency<Rectangular>]) -> Vec<Frequency<Polar>> {
+	let mut previous_phase = None;
+	frequencies.iter().map(|frequency| {
+		let mut polar: Frequency<Polar> = (*frequency).into();
+		if let Some(previous_phase) = previous_phase {
+			polar.unwrap_phase(previous_phase);
+		}
+		previous_phase = Some(polar.phase);
+		polar
+	}).collect()
 }
 
 #[cfg(test)]
@@ -57,16 +67,16 @@ mod tests {
 	use super::*;
 
 	#[test]
-	fn test_to_polar() {
-		let (magnitude, phase) = to_polar(3.0, 4.0);
-		assert_eq!(magnitude, 5.0);
-		assert_eq!(math::approximate(phase), 0.9272952079772949);
-		let (_, phase) = to_polar(-3.0, 4.0);
-		assert_eq!(math::approximate(phase), 2.2142975330352783);
+	fn test_into_polar() {
+		let polar: Polar = Rectangular { cosine: 3.0, sine: 4.0 }.into();
+		assert_eq!(polar.magnitude, 5.0);
+		assert_eq!(math::approximate(polar.phase), 0.9272952079772949);
+		let polar: Polar = Rectangular { cosine: -3.0, sine: 4.0 }.into();
+		assert_eq!(math::approximate(polar.phase), 2.2142975330352783);
 
-		let (_, phase) = to_polar(5.0, 0.0);
-		assert_eq!(phase, 0.0);
-		let (_, phase) = to_polar(-5.0, 0.0);
-		assert_eq!(phase, consts::PI);
+		let polar: Polar = Rectangular { cosine: 5.0, sine: 0.0 }.into();
+		assert_eq!(polar.phase, 0.0);
+		let polar: Polar = Rectangular { cosine: -5.0, sine: 0.0 }.into();
+		assert_eq!(polar.phase, consts::PI);
 	}
 }

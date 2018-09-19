@@ -1,3 +1,7 @@
+#![feature(self_struct_ctor)]
+
+#[macro_use]
+pub mod type_wrapper;
 pub mod binned_histogram;
 pub mod convolution;
 pub mod correlation;
@@ -9,7 +13,7 @@ pub mod fourier_transform;
 pub mod math;
 pub mod polar;
 pub mod frequency;
-pub mod utility;
+pub mod rectangular;
 
 pub type Sample = f64;
 pub type IntegralSample = i64;
