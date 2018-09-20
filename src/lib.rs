@@ -14,6 +14,7 @@ pub mod math;
 pub mod polar;
 pub mod frequency;
 pub mod rectangular;
+pub mod transform_pairs;
 
 pub type Sample = f64;
 pub type IntegralSample = i64;

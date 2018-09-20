@@ -22,7 +22,6 @@ pub fn correlation(signal: &[Sample], target: &[Sample]) -> f64 {
 	correlate_fourier(signal, target).iter().sum()
 }
 
-// TODO use fast fourier transform
 pub fn correlate_fourier(signal: &[Sample], target: &[Sample]) -> Vec<Sample> {
 	let signal_frequencies = fourier_transform::analysis(&signal);
 	let target_frequencies = fourier_transform::analysis_padding(&target, signal.len());

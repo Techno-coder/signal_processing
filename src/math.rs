@@ -1,3 +1,4 @@
+use std::f64::consts;
 use super::Sample;
 
 pub fn approximate(sample: Sample) -> Sample {
@@ -6,5 +7,14 @@ pub fn approximate(sample: Sample) -> Sample {
 		0.0
 	} else {
 		sample as f32 as f64
+	}
+}
+
+pub fn sinc(x: f64) -> f64 {
+	if x != 0.0 {
+		let x = x * consts::PI;
+		x.sin() / x
+	} else {
+		1.0
 	}
 }

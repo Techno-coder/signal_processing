@@ -25,7 +25,6 @@ pub fn convolve_single(signal: &[Sample], impulse_response: &[Sample], index: us
 }
 
 /// Calculates a convolution with discrete fourier transforms
-// TODO use fast fourier transforms
 pub fn convolve_fourier(signal: &[Sample], impulse_response: &[Sample]) -> Vec<Sample> {
 	let convolution_length = signal.len() + impulse_response.len() - 1;
 	let signal_frequencies = fourier_transform::analysis_padding(&signal, convolution_length);
