@@ -4,6 +4,20 @@ use std::f64;
 use std::f64::consts;
 use super::Sample;
 
+pub trait FourierTransform {
+	fn analysis_extend(signal: &[Sample], signal_length: usize) -> Vec<Frequency<Rectangular>>;
+	fn synthesis_exact(frequencies: &[Frequency<Rectangular>], signal_length: usize) -> Vec<Sample>;
+
+	fn analysis(signal: &[Sample]) -> Vec<Frequency<Rectangular>> {
+		Self::analysis_extend(signal, signal.len())
+	}
+
+	fn synthesis(frequencies: &[Frequency<Rectangular>]) -> Vec<Sample> {
+		let signal_length = frequencies.len() * 2;
+		Self::synthesis_exact(frequencies, signal_length)
+	}
+}
+
 pub fn cosine_basis_single(frequency: f64, signal_length: usize, index: usize) -> Sample {
 	(2.0 * consts::PI * frequency * (index as f64 / signal_length as f64)).cos()
 }
@@ -32,33 +46,33 @@ pub fn normalize_sine_amplitude(amplitude: Sample, signal_length: usize) -> Samp
 	-amplitude / (signal_length as f64 / 2.0)
 }
 
-pub fn synthesis(frequencies: &[Frequency<Rectangular>], signal_length: usize) -> Vec<Sample> {
-	let upper_bound = (signal_length + 1) / 2;
-	assert!(frequencies.len() >= upper_bound);
-	(0..signal_length).map(|i| {
+pub struct CorrelationFourier();
+
+impl FourierTransform for CorrelationFourier {
+	fn analysis_extend(signal: &[Sample], signal_length: usize) -> Vec<Frequency<Rectangular>> {
+		let upper_bound = (signal_length + 1) / 2;
 		(0..upper_bound).map(|k| {
-			let cosine = normalize_cosine_amplitude(k as f64, frequencies[k].cosine, signal_length) *
-				cosine_basis_single(k as f64, signal_length, i);
-			let sine = normalize_sine_amplitude(frequencies[k].sine, signal_length) *
-				sine_basis_single(k as f64, signal_length, i);
-			cosine + sine
-		}).sum()
-	}).collect()
-}
+			let cosine = (0..signal_length).map(|i| signal.get(i).unwrap_or(&0.0) *
+				cosine_basis_single(k as f64, signal_length, i)).sum();
+			let sine = (0..signal_length).map(|i| -signal.get(i).unwrap_or(&0.0) *
+				sine_basis_single(k as f64, signal_length, i)).sum();
+			Rectangular { cosine, sine }.into()
+		}).collect()
+	}
 
-pub fn analysis(signal: &[Sample]) -> (Vec<Frequency<Rectangular>>) {
-	analysis_padding(signal, signal.len())
-}
-
-pub fn analysis_padding(signal: &[Sample], signal_length: usize) -> (Vec<Frequency<Rectangular>>) {
-	let upper_bound = (signal_length + 1) / 2;
-	(0..upper_bound).map(|k| {
-		let cosine = (0..signal_length).map(|i| signal.get(i).unwrap_or(&0.0) *
-			cosine_basis_single(k as f64, signal_length, i)).sum();
-		let sine = (0..signal_length).map(|i| -signal.get(i).unwrap_or(&0.0) *
-			sine_basis_single(k as f64, signal_length, i)).sum();
-		Rectangular { cosine, sine }.into()
-	}).collect()
+	fn synthesis_exact(frequencies: &[Frequency<Rectangular>], signal_length: usize) -> Vec<Sample> {
+		let upper_bound = (signal_length + 1) / 2;
+		assert!(frequencies.len() >= upper_bound);
+		(0..signal_length).map(|i| {
+			(0..upper_bound).map(|k| {
+				let cosine = normalize_cosine_amplitude(k as f64, frequencies[k].cosine, signal_length) *
+					cosine_basis_single(k as f64, signal_length, i);
+				let sine = normalize_sine_amplitude(frequencies[k].sine, signal_length) *
+					sine_basis_single(k as f64, signal_length, i);
+				cosine + sine
+			}).sum()
+		}).collect()
+	}
 }
 
 #[cfg(test)]
@@ -88,7 +102,7 @@ mod tests {
 			Frequency(Rectangular { cosine: -2.5, sine: -0.81229924 }),
 			Frequency(Rectangular { cosine: -2.5, sine: -3.4409548 }),
 		];
-		let synthesis: Vec<_> = synthesis(&frequencies, 5)
+		let synthesis: Vec<_> = CorrelationFourier::synthesis_exact(&frequencies, 5)
 			.into_iter().map(math::approximate).collect();
 		assert_eq!(synthesis, vec![1.0, 2.0, 3.0, 4.0, 5.0]);
 	}
@@ -96,8 +110,8 @@ mod tests {
 	#[test]
 	fn test_fourier_transform() {
 		let signal = [1.0, 2.0, 3.0, 4.0, 5.0];
-		let frequencies = analysis(&signal);
-		let synthesis: Vec<_> = synthesis(&frequencies, 5)
+		let frequencies = CorrelationFourier::analysis(&signal);
+		let synthesis: Vec<_> = CorrelationFourier::synthesis_exact(&frequencies, 5)
 			.into_iter().map(math::approximate).collect();
 		assert_eq!(synthesis, signal);
 	}

@@ -1,4 +1,4 @@
-use super::fourier_transform;
+use super::fourier_transform::FourierTransform;
 use super::polar::Polar;
 use super::rectangular::Rectangular;
 use super::Sample;
@@ -18,13 +18,13 @@ pub fn correlate_single(signal: &[Sample], target: &[Sample], index: usize) -> S
 	output_sample
 }
 
-pub fn correlation(signal: &[Sample], target: &[Sample]) -> f64 {
-	correlate_fourier(signal, target).iter().sum()
+pub fn correlation<T>(signal: &[Sample], target: &[Sample]) -> f64 where T: FourierTransform {
+	correlate_fourier::<T>(signal, target).iter().sum()
 }
 
-pub fn correlate_fourier(signal: &[Sample], target: &[Sample]) -> Vec<Sample> {
-	let signal_frequencies = fourier_transform::analysis(&signal);
-	let target_frequencies = fourier_transform::analysis_padding(&target, signal.len());
+pub fn correlate_fourier<T>(signal: &[Sample], target: &[Sample]) -> Vec<Sample> where T: FourierTransform {
+	let signal_frequencies = T::analysis(&signal);
+	let target_frequencies = T::analysis_extend(&target, signal.len());
 
 	let mut output_frequencies = Vec::new();
 	for index in 0..((signal.len() + 1) / 2) {
@@ -32,11 +32,12 @@ pub fn correlate_fourier(signal: &[Sample], target: &[Sample]) -> Vec<Sample> {
 		let target_frequency: Rectangular = target_frequency.complex_conjugate().into();
 		output_frequencies.push(signal_frequencies[index] * target_frequency.into());
 	}
-	fourier_transform::synthesis(&output_frequencies, signal.len())
+	T::synthesis_exact(&output_frequencies, signal.len())
 }
 
 #[cfg(test)]
 mod tests {
+	use crate::fourier_transform::CorrelationFourier;
 	use super::*;
 
 	#[test]
@@ -59,6 +60,6 @@ mod tests {
 	fn test_correlation() {
 		let signal = [0.0, 1.0, 2.0, 5.0, 2.0, 1.0];
 		let target = [1.0, 2.0];
-		assert_eq!(correlation(&signal, &target), vec![2.0, 5.0, 12.0, 9.0, 4.0, 1.0].into_iter().sum());
+		assert_eq!(correlation::<CorrelationFourier>(&signal, &target), vec![2.0, 5.0, 12.0, 9.0, 4.0, 1.0].into_iter().sum());
 	}
 }
