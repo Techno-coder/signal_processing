@@ -5,3 +5,8 @@ authors = ["Techno-coder <8334328+Techno-coder@users.noreply.github.com>"]
 edition = '2018'
 
 [dependencies]
+num-complex = { version = "*", optional = true }
+rustfft = { version = "*", optional = true }
+
+[features]
+fast_fourier = ["rustfft", "num-complex"]

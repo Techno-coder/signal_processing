@@ -99,8 +99,6 @@ mod tests {
 			Frequency(Rectangular { cosine: 15.0, sine: 0.0 }),
 			Frequency(Rectangular { cosine: -2.5, sine: 3.4409548 }),
 			Frequency(Rectangular { cosine: -2.5, sine: 0.81229924 }),
-			Frequency(Rectangular { cosine: -2.5, sine: -0.81229924 }),
-			Frequency(Rectangular { cosine: -2.5, sine: -3.4409548 }),
 		];
 		let synthesis: Vec<_> = CorrelationFourier::synthesis_exact(&frequencies, 5)
 			.into_iter().map(math::approximate).collect();
@@ -108,7 +106,7 @@ mod tests {
 	}
 
 	#[test]
-	fn test_fourier_transform() {
+	fn test_analysis() {
 		let signal = [1.0, 2.0, 3.0, 4.0, 5.0];
 		let frequencies = CorrelationFourier::analysis(&signal);
 		let synthesis: Vec<_> = CorrelationFourier::synthesis_exact(&frequencies, 5)
