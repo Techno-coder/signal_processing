@@ -1,9 +1,9 @@
 #![feature(self_struct_ctor)]
 
 #[cfg(feature = "fast_fourier")]
-extern crate rustfft;
-#[cfg(feature = "fast_fourier")]
 extern crate num_complex;
+#[cfg(feature = "fast_fourier")]
+extern crate rustfft;
 
 #[macro_use]
 pub mod type_wrapper;

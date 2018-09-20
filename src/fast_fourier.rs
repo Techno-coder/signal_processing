@@ -21,7 +21,7 @@ impl FourierTransform for FastFourier {
 		      .collect()
 	}
 
-	fn synthesis_exact(frequencies: &[Frequency<Rectangular>], signal_length: usize) -> Vec<Sample> {
+	fn synthesis(frequencies: &[Frequency<Rectangular>], signal_length: usize) -> Vec<Sample> {
 		let mut frequencies: Vec<_> = frequencies.iter().map(|complex| Complex64::new(complex.cosine, complex.sine)).collect();
 		(1..frequencies.len()).rev().for_each(|index| frequencies.push(frequencies[index].conj()));
 		utility::pad_default(&mut frequencies, signal_length);
@@ -50,7 +50,7 @@ mod tests {
 			Frequency(Rectangular { cosine: -2.5, sine: 3.4409548 }),
 			Frequency(Rectangular { cosine: -2.5, sine: 0.81229924 }),
 		];
-		let synthesis: Vec<_> = FastFourier::synthesis_exact(&frequencies, 5)
+		let synthesis: Vec<_> = FastFourier::synthesis(&frequencies, 5)
 			.into_iter().map(math::approximate).collect();
 		assert_eq!(synthesis, vec![1.0, 2.0, 3.0, 4.0, 5.0]);
 	}
@@ -59,7 +59,7 @@ mod tests {
 	fn test_analysis() {
 		let signal = [1.0, 2.0, 3.0, 4.0, 5.0];
 		let frequencies = FastFourier::analysis(&signal);
-		let synthesis: Vec<_> = FastFourier::synthesis_exact(&frequencies, 5)
+		let synthesis: Vec<_> = FastFourier::synthesis(&frequencies, 5)
 			.into_iter().map(math::approximate).collect();
 		assert_eq!(synthesis, signal);
 	}

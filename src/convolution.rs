@@ -33,7 +33,7 @@ pub fn convolve_fourier<T>(signal: &[Sample], impulse_response: &[Sample]) -> Ve
 	let frequency_length = (convolution_length + 1) / 2;
 	let output_frequencies: Vec<_> = (0..frequency_length)
 		.map(|index| signal_frequencies[index] * kernel_frequencies[index]).collect();
-	T::synthesis_exact(&output_frequencies, convolution_length)
+	T::synthesis(&output_frequencies, convolution_length)
 }
 
 #[cfg(test)]

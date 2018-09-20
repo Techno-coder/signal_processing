@@ -32,7 +32,7 @@ pub fn correlate_fourier<T>(signal: &[Sample], target: &[Sample]) -> Vec<Sample>
 		let target_frequency: Rectangular = target_frequency.complex_conjugate().into();
 		output_frequencies.push(signal_frequencies[index] * target_frequency.into());
 	}
-	T::synthesis_exact(&output_frequencies, signal.len())
+	T::synthesis(&output_frequencies, signal.len())
 }
 
 #[cfg(test)]

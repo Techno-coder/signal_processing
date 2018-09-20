@@ -6,15 +6,10 @@ use super::Sample;
 
 pub trait FourierTransform {
 	fn analysis_extend(signal: &[Sample], signal_length: usize) -> Vec<Frequency<Rectangular>>;
-	fn synthesis_exact(frequencies: &[Frequency<Rectangular>], signal_length: usize) -> Vec<Sample>;
+	fn synthesis(frequencies: &[Frequency<Rectangular>], signal_length: usize) -> Vec<Sample>;
 
 	fn analysis(signal: &[Sample]) -> Vec<Frequency<Rectangular>> {
 		Self::analysis_extend(signal, signal.len())
-	}
-
-	fn synthesis(frequencies: &[Frequency<Rectangular>]) -> Vec<Sample> {
-		let signal_length = frequencies.len() * 2;
-		Self::synthesis_exact(frequencies, signal_length)
 	}
 }
 
@@ -60,7 +55,7 @@ impl FourierTransform for CorrelationFourier {
 		}).collect()
 	}
 
-	fn synthesis_exact(frequencies: &[Frequency<Rectangular>], signal_length: usize) -> Vec<Sample> {
+	fn synthesis(frequencies: &[Frequency<Rectangular>], signal_length: usize) -> Vec<Sample> {
 		let upper_bound = (signal_length + 1) / 2;
 		assert!(frequencies.len() >= upper_bound);
 		(0..signal_length).map(|i| {
@@ -100,7 +95,7 @@ mod tests {
 			Frequency(Rectangular { cosine: -2.5, sine: 3.4409548 }),
 			Frequency(Rectangular { cosine: -2.5, sine: 0.81229924 }),
 		];
-		let synthesis: Vec<_> = CorrelationFourier::synthesis_exact(&frequencies, 5)
+		let synthesis: Vec<_> = CorrelationFourier::synthesis(&frequencies, 5)
 			.into_iter().map(math::approximate).collect();
 		assert_eq!(synthesis, vec![1.0, 2.0, 3.0, 4.0, 5.0]);
 	}
@@ -109,7 +104,7 @@ mod tests {
 	fn test_analysis() {
 		let signal = [1.0, 2.0, 3.0, 4.0, 5.0];
 		let frequencies = CorrelationFourier::analysis(&signal);
-		let synthesis: Vec<_> = CorrelationFourier::synthesis_exact(&frequencies, 5)
+		let synthesis: Vec<_> = CorrelationFourier::synthesis(&frequencies, 5)
 			.into_iter().map(math::approximate).collect();
 		assert_eq!(synthesis, signal);
 	}
