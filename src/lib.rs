@@ -27,9 +27,12 @@ pub mod transform_pairs;
 pub mod utility;
 pub mod window;
 pub mod short_time_fourier;
+pub mod phase_vocoder;
+pub mod bin;
 
 #[cfg(feature = "fast_fourier")]
 pub mod fast_fourier;
 
 pub type Sample = f64;
 pub type IntegralSample = i64;
+pub type Hertz = f64;

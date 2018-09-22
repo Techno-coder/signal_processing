@@ -115,7 +115,6 @@ mod tests {
 	fn test_analysis() {
 		let signal = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
 		let frequencies = CorrelationFourier::analysis(&signal);
-		eprintln!("{:#?}", frequencies);
 		let synthesis: Vec<_> = CorrelationFourier::synthesis(&frequencies, 6)
 			.into_iter().map(math::approximate).collect();
 		assert_eq!(synthesis, signal);
