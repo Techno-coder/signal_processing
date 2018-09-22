@@ -27,13 +27,13 @@ pub fn convolve_single(signal: &[Sample], impulse_response: &[Sample], index: us
 /// Calculates a convolution with discrete fourier transforms
 pub fn convolve_fourier<T>(signal: &[Sample], impulse_response: &[Sample]) -> Vec<Sample> where T: FourierTransform {
 	let convolution_length = signal.len() + impulse_response.len() - 1;
-	let signal_frequencies = T::analysis_extend(&signal, convolution_length);
-	let kernel_frequencies = T::analysis_extend(&impulse_response, convolution_length);
+	let signal_bins = T::analysis_extend(&signal, convolution_length);
+	let kernel_bins = T::analysis_extend(&impulse_response, convolution_length);
 
-	let frequency_length = (convolution_length + 1) / 2;
-	let output_frequencies: Vec<_> = (0..frequency_length)
-		.map(|index| signal_frequencies[index] * kernel_frequencies[index]).collect();
-	T::synthesis(&output_frequencies, convolution_length)
+	let bin_count = (convolution_length + 1) / 2;
+	let output_bins: Vec<_> = (0..bin_count)
+		.map(|index| signal_bins[index] * kernel_bins[index]).collect();
+	T::synthesis(&output_bins, convolution_length)
 }
 
 #[cfg(test)]

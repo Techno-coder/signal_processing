@@ -1,4 +1,4 @@
-use crate::frequency::Frequency;
+use crate::bin::Bin;
 use crate::rectangular::Rectangular;
 use std::f64::consts;
 use super::Sample;
@@ -49,10 +49,10 @@ impl From<Rectangular> for Polar {
 	}
 }
 
-pub fn to_polar_spectrum(frequencies: &[Frequency<Rectangular>]) -> Vec<Frequency<Polar>> {
+pub fn to_polar_spectrum(bins: &[Bin<Rectangular>]) -> Vec<Bin<Polar>> {
 	let mut previous_phase = None;
-	frequencies.iter().map(|frequency| {
-		let mut polar: Frequency<Polar> = (*frequency).into();
+	bins.iter().map(|bin| {
+		let mut polar: Bin<Polar> = (*bin).into();
 		if let Some(previous_phase) = previous_phase {
 			polar.unwrap_phase(previous_phase);
 		}

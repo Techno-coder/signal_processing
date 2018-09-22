@@ -23,16 +23,16 @@ pub fn correlation<T>(signal: &[Sample], target: &[Sample]) -> f64 where T: Four
 }
 
 pub fn correlate_fourier<T>(signal: &[Sample], target: &[Sample]) -> Vec<Sample> where T: FourierTransform {
-	let signal_frequencies = T::analysis(&signal);
-	let target_frequencies = T::analysis_extend(&target, signal.len());
+	let signal_bins = T::analysis(&signal);
+	let target_bins = T::analysis_extend(&target, signal.len());
 
-	let mut output_frequencies = Vec::new();
+	let mut output_bins = Vec::new();
 	for index in 0..((signal.len() / 2) + 1) {
-		let target_frequency: Polar = target_frequencies[index].take().into();
-		let target_frequency: Rectangular = target_frequency.complex_conjugate().into();
-		output_frequencies.push(signal_frequencies[index] * target_frequency.into());
+		let target_bin: Polar = target_bins[index].take().into();
+		let target_bin: Rectangular = target_bin.complex_conjugate().into();
+		output_bins.push(signal_bins[index] * target_bin.into());
 	}
-	T::synthesis(&output_frequencies, signal.len())
+	T::synthesis(&output_bins, signal.len())
 }
 
 #[cfg(test)]

@@ -21,14 +21,14 @@ pub mod statistics;
 pub mod fourier_transform;
 pub mod math;
 pub mod polar;
-pub mod frequency;
+pub mod bin;
 pub mod rectangular;
 pub mod transform_pairs;
 pub mod utility;
 pub mod window;
 pub mod short_time_fourier;
 pub mod phase_vocoder;
-pub mod bin;
+pub mod bin_frequency;
 
 #[cfg(feature = "fast_fourier")]
 pub mod fast_fourier;
