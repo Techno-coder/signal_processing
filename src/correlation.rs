@@ -27,7 +27,7 @@ pub fn correlate_fourier<T>(signal: &[Sample], target: &[Sample]) -> Vec<Sample>
 	let target_frequencies = T::analysis_extend(&target, signal.len());
 
 	let mut output_frequencies = Vec::new();
-	for index in 0..((signal.len() + 1) / 2) {
+	for index in 0..((signal.len() / 2) + 1) {
 		let target_frequency: Polar = target_frequencies[index].take().into();
 		let target_frequency: Rectangular = target_frequency.complex_conjugate().into();
 		output_frequencies.push(signal_frequencies[index] * target_frequency.into());

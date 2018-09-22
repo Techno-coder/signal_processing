@@ -10,28 +10,30 @@ pub struct FastFourier();
 
 impl FourierTransform for FastFourier {
 	fn analysis_extend(signal: &[Sample], signal_length: usize) -> Vec<Frequency<Rectangular>> {
+		let upper_bound = (signal_length / 2) + 1;
 		let mut signal: Vec<_> = signal.iter().map(|real| Complex64::new(*real, 0.0)).collect();
 		utility::pad_default(&mut signal, signal_length);
 		let mut output = vec![Complex64::default(); signal_length];
 
 		let planner = FFTplanner::new(false).plan_fft(signal_length);
 		planner.process(&mut signal, &mut output);
-		output.into_iter().take((signal_length + 1) / 2)
+		output.into_iter().take(upper_bound)
 		      .map(|complex| Rectangular { cosine: complex.re, sine: complex.im }.into())
 		      .collect()
 	}
 
 	fn synthesis(frequencies: &[Frequency<Rectangular>], signal_length: usize) -> Vec<Sample> {
+		let mirror_bound = ((signal_length - 1) / 2) + 1;
 		let mut frequencies: Vec<_> = frequencies.iter().map(|complex| Complex64::new(complex.cosine, complex.sine)).collect();
-		(1..frequencies.len()).rev().for_each(|index| frequencies.push(frequencies[index].conj()));
-		utility::pad_default(&mut frequencies, signal_length);
+		utility::pad_default(&mut frequencies, mirror_bound);
+		(1..mirror_bound).rev().for_each(|index| frequencies.push(frequencies[index].conj()));
 		let mut output = vec![Complex64::default(); signal_length];
 
 		let planner = FFTplanner::new(true).plan_fft(signal_length);
 		planner.process(&mut frequencies, &mut output);
 		output.into_iter()
 		      .map(|complex| complex.re)
-		      .map(|sample| sample * (1.0 / signal_length as f64))
+		      .map(|sample| sample / signal_length as f64)
 		      .collect()
 	}
 }
@@ -56,10 +58,21 @@ mod tests {
 	}
 
 	#[test]
+	fn test_synthesis_even_length() {
+		let frequencies = [
+			Frequency(Rectangular { cosine: 10.0, sine: 0.0 }),
+			Frequency(Rectangular { cosine: -2.0, sine: 2.0 }),
+			Frequency(Rectangular { cosine: -2.0, sine: 0.0 }),
+		];
+		let synthesis: Vec<_> = FastFourier::synthesis(&frequencies, 4);
+		assert_eq!(&synthesis, &[1.0, 2.0, 3.0, 4.0]);
+	}
+
+	#[test]
 	fn test_analysis() {
-		let signal = [1.0, 2.0, 3.0, 4.0, 5.0];
+		let signal = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
 		let frequencies = FastFourier::analysis(&signal);
-		let synthesis: Vec<_> = FastFourier::synthesis(&frequencies, 5)
+		let synthesis: Vec<_> = FastFourier::synthesis(&frequencies, 6)
 			.into_iter().map(math::approximate).collect();
 		assert_eq!(synthesis, signal);
 	}

@@ -45,7 +45,7 @@ pub struct CorrelationFourier();
 
 impl FourierTransform for CorrelationFourier {
 	fn analysis_extend(signal: &[Sample], signal_length: usize) -> Vec<Frequency<Rectangular>> {
-		let upper_bound = (signal_length + 1) / 2;
+		let upper_bound = (signal_length / 2) + 1;
 		(0..upper_bound).map(|k| {
 			let cosine = (0..signal_length).map(|i| signal.get(i).unwrap_or(&0.0) *
 				cosine_basis_single(k as f64, signal_length, i)).sum();
@@ -56,7 +56,7 @@ impl FourierTransform for CorrelationFourier {
 	}
 
 	fn synthesis(frequencies: &[Frequency<Rectangular>], signal_length: usize) -> Vec<Sample> {
-		let upper_bound = (signal_length + 1) / 2;
+		let upper_bound = (signal_length / 2) + 1;
 		assert!(frequencies.len() >= upper_bound);
 		(0..signal_length).map(|i| {
 			(0..upper_bound).map(|k| {
@@ -93,7 +93,7 @@ mod tests {
 		let frequencies = [
 			Frequency(Rectangular { cosine: 15.0, sine: 0.0 }),
 			Frequency(Rectangular { cosine: -2.5, sine: 3.4409548 }),
-			Frequency(Rectangular { cosine: -2.5, sine: 0.81229924 }),
+			Frequency(Rectangular { cosine: -2.5, sine: 0.81229924 })
 		];
 		let synthesis: Vec<_> = CorrelationFourier::synthesis(&frequencies, 5)
 			.into_iter().map(math::approximate).collect();
@@ -101,10 +101,22 @@ mod tests {
 	}
 
 	#[test]
+	fn test_synthesis_even_length() {
+		let frequencies = [
+			Frequency(Rectangular { cosine: 10.0, sine: 0.0 }),
+			Frequency(Rectangular { cosine: -2.0, sine: 2.0 }),
+			Frequency(Rectangular { cosine: -2.0, sine: 0.0 }),
+		];
+		let synthesis: Vec<_> = CorrelationFourier::synthesis(&frequencies, 4);
+		assert_eq!(synthesis, vec![1.0, 2.0, 3.0, 4.0]);
+	}
+
+	#[test]
 	fn test_analysis() {
-		let signal = [1.0, 2.0, 3.0, 4.0, 5.0];
+		let signal = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
 		let frequencies = CorrelationFourier::analysis(&signal);
-		let synthesis: Vec<_> = CorrelationFourier::synthesis(&frequencies, 5)
+		eprintln!("{:#?}", frequencies);
+		let synthesis: Vec<_> = CorrelationFourier::synthesis(&frequencies, 6)
 			.into_iter().map(math::approximate).collect();
 		assert_eq!(synthesis, signal);
 	}

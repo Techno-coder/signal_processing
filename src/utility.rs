@@ -1,6 +1,5 @@
 pub fn pad_default<T>(vector: &mut Vec<T>, length: usize) where T: Default {
-	assert!(vector.len() <= length);
-	while vector.len() != length {
+	while vector.len() < length {
 		vector.push(T::default());
 	}
 }
