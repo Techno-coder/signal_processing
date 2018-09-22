@@ -10,3 +10,6 @@ rustfft = { version = "*", optional = true }
 
 [features]
 fast_fourier = ["rustfft", "num-complex"]
+
+[dev-dependencies]
+pretty_assertions = "*"

@@ -31,10 +31,7 @@ impl FourierTransform for FastFourier {
 
 		let planner = FFTplanner::new(true).plan_fft(signal_length);
 		planner.process(&mut frequencies, &mut output);
-		output.into_iter()
-		      .map(|complex| complex.re)
-		      .map(|sample| sample / signal_length as f64)
-		      .collect()
+		output.into_iter().map(|complex| complex.re / signal_length as f64).collect()
 	}
 }
 

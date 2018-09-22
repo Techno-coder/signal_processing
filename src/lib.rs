@@ -1,5 +1,9 @@
 #![feature(self_struct_ctor)]
 
+#[cfg(test)]
+#[macro_use]
+extern crate pretty_assertions;
+
 #[cfg(feature = "fast_fourier")]
 extern crate num_complex;
 #[cfg(feature = "fast_fourier")]
@@ -21,6 +25,8 @@ pub mod frequency;
 pub mod rectangular;
 pub mod transform_pairs;
 pub mod utility;
+pub mod window;
+pub mod short_time_fourier;
 
 #[cfg(feature = "fast_fourier")]
 pub mod fast_fourier;
