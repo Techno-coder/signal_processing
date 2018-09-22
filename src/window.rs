@@ -24,6 +24,13 @@ impl Window {
 		self.window.get(index).unwrap_or(&0.0) * sample
 	}
 
+	pub fn normalize_amplitude(&self, overlap_factor: f64) -> Window {
+		assert!(overlap_factor > 0.0);
+		Window {
+			window: self.window.iter().map(|x| x / overlap_factor).collect()
+		}
+	}
+
 	pub fn width(&self) -> usize {
 		self.window.len()
 	}
@@ -33,15 +40,24 @@ pub trait WindowFunction {
 	fn generate(length: usize) -> Vec<Sample>;
 }
 
-pub struct Hann();
+pub struct Sine();
 
-impl WindowFunction for Hann {
+impl WindowFunction for Sine {
 	fn generate(length: usize) -> Vec<Sample> {
 		let denominator = (length - 1) as f64;
 		(0..length)
 			.map(|n| ((consts::PI * n as f64) / denominator).sin())
-			.map(|n| n * n)
 			.collect()
+	}
+}
+
+pub struct Hann();
+
+impl WindowFunction for Hann {
+	fn generate(length: usize) -> Vec<Sample> {
+		let mut window = Sine::generate(length);
+		window.iter_mut().for_each(|x| *x = *x * *x);
+		window
 	}
 }
 

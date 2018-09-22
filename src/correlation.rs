@@ -1,4 +1,5 @@
 use super::fourier_transform::FourierTransform;
+use super::fourier_transform;
 use super::polar::Polar;
 use super::rectangular::Rectangular;
 use super::Sample;
@@ -27,7 +28,7 @@ pub fn correlate_fourier<T>(signal: &[Sample], target: &[Sample]) -> Vec<Sample>
 	let target_bins = T::analysis_extend(&target, signal.len());
 
 	let mut output_bins = Vec::new();
-	for index in 0..((signal.len() / 2) + 1) {
+	for index in 0..(fourier_transform::bin_count(signal.len())) {
 		let target_bin: Polar = target_bins[index].take().into();
 		let target_bin: Rectangular = target_bin.complex_conjugate().into();
 		output_bins.push(signal_bins[index] * target_bin.into());

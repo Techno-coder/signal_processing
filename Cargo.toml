@@ -9,7 +9,9 @@ num-complex = { version = "*", optional = true }
 rustfft = { version = "*", optional = true }
 
 [features]
+default = ["fast_fourier"]
 fast_fourier = ["rustfft", "num-complex"]
 
 [dev-dependencies]
 pretty_assertions = "*"
+hound = "*"

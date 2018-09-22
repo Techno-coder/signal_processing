@@ -1,4 +1,5 @@
 use crate::fourier_transform::FourierTransform;
+use crate::fourier_transform;
 use crate::bin::Bin;
 use crate::rectangular::Rectangular;
 use crate::utility;
@@ -10,7 +11,7 @@ pub struct FastFourier();
 
 impl FourierTransform for FastFourier {
 	fn analysis_extend(signal: &[Sample], signal_length: usize) -> Vec<Bin<Rectangular>> {
-		let upper_bound = (signal_length / 2) + 1;
+		let upper_bound = fourier_transform::bin_count(signal_length);
 		let mut signal: Vec<_> = signal.iter().map(|real| Complex64::new(*real, 0.0)).collect();
 		utility::pad_default(&mut signal, signal_length);
 		let mut output = vec![Complex64::default(); signal_length];
@@ -23,7 +24,7 @@ impl FourierTransform for FastFourier {
 	}
 
 	fn synthesis(bins: &[Bin<Rectangular>], signal_length: usize) -> Vec<Sample> {
-		let mirror_bound = ((signal_length - 1) / 2) + 1;
+		let mirror_bound = fourier_transform::bin_count(signal_length - 1);
 		let mut bins: Vec<_> = bins.iter().map(|complex| Complex64::new(complex.cosine, complex.sine)).collect();
 		utility::pad_default(&mut bins, mirror_bound);
 		(1..mirror_bound).rev().for_each(|index| bins.push(bins[index].conj()));

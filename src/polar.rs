@@ -3,7 +3,7 @@ use crate::rectangular::Rectangular;
 use std::f64::consts;
 use super::Sample;
 
-#[derive(Debug, PartialOrd, PartialEq, Copy, Clone)]
+#[derive(Debug, Default, PartialOrd, PartialEq, Copy, Clone)]
 pub struct Polar {
 	pub magnitude: Sample,
 	pub phase: Sample,

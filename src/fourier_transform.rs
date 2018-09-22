@@ -41,11 +41,16 @@ pub fn normalize_sine_amplitude(amplitude: Sample, signal_length: usize) -> Samp
 	-amplitude / (signal_length as f64 / 2.0)
 }
 
+/// Calculates the number of bins generated for a real valued Fourier transform
+pub fn bin_count(signal_length: usize) -> usize {
+	(signal_length / 2) + 1
+}
+
 pub struct CorrelationFourier();
 
 impl FourierTransform for CorrelationFourier {
 	fn analysis_extend(signal: &[Sample], signal_length: usize) -> Vec<Bin<Rectangular>> {
-		let bin_count = (signal_length / 2) + 1;
+		let bin_count = bin_count(signal_length);
 		(0..bin_count).map(|k| {
 			let cosine = (0..signal_length).map(|i| signal.get(i).unwrap_or(&0.0) *
 				cosine_basis_single(k, signal_length, i)).sum();
@@ -56,7 +61,7 @@ impl FourierTransform for CorrelationFourier {
 	}
 
 	fn synthesis(bins: &[Bin<Rectangular>], signal_length: usize) -> Vec<Sample> {
-		let bin_count = (signal_length / 2) + 1;
+		let bin_count = bin_count(signal_length);
 		assert!(bins.len() >= bin_count);
 		(0..signal_length).map(|i| {
 			(0..bin_count).map(|k| {

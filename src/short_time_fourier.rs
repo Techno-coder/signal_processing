@@ -1,12 +1,8 @@
-use crate::fourier_transform::FourierTransform;
 use crate::bin::Bin;
+use crate::fourier_transform::FourierTransform;
 use crate::rectangular::Rectangular;
 use crate::window::Window;
 use super::Sample;
-
-pub fn overlap_factor(overlap: usize, window: &Window) -> f64 {
-	window.width() as f64 / (window.width() - overlap) as f64
-}
 
 pub fn analysis<T>(signal: &[Sample], overlap: usize, window: &Window)
                    -> Vec<Vec<Bin<Rectangular>>> where T: FourierTransform {
@@ -40,7 +36,7 @@ pub fn synthesis<T>(matrix: &Vec<Vec<Bin<Rectangular>>>, overlap: usize, window:
 	for frame in frames.iter() {
 		for (index, sample) in frame.iter().enumerate() {
 			let signal_index = frame_start + index;
-			signal[signal_index] += *sample;
+			signal[signal_index] += window.apply_single(sample, index);
 		}
 		frame_start += frame_spacing;
 	}
@@ -88,9 +84,11 @@ mod tests {
 	#[test]
 	fn test_synthesis() {
 		let signal: Vec<_> = (0..200).map(|x| x as f64).collect();
-		let window = Window::generate::<window::Hann>(100);
-		let matrix = analysis::<CorrelationFourier>(&signal, 50, &window);
-		let mut signal = synthesis::<CorrelationFourier>(&matrix, 50, &window);
+		let analysis_window = Window::generate::<window::Hann>(100);
+		let matrix = analysis::<CorrelationFourier>(&signal, 50, &analysis_window);
+
+		let synthesis_window = Window::generate::<window::Dirichlet>(100);
+		let mut signal = synthesis::<CorrelationFourier>(&matrix, 50, &synthesis_window);
 		signal.iter_mut().for_each(|sample| *sample = sample.round());
 		assert_eq!(utility::find_peak(&signal), Some(&151.0));
 	}

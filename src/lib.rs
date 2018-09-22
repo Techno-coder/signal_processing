@@ -36,3 +36,4 @@ pub mod fast_fourier;
 pub type Sample = f64;
 pub type IntegralSample = i64;
 pub type Hertz = f64;
+pub type SampleRate = u64;
