@@ -23,7 +23,7 @@ pub struct PhaseVocoderBin {
 }
 
 pub trait PhaseVocoderProcessor: Send + Sync {
-	fn process(&self, bins: Vec<PhaseVocoderBin>) -> Vec<PhaseVocoderBin>;
+	fn process(&self, bins: Vec<PhaseVocoderBin>, output_bins: &mut Vec<PhaseVocoderBin>);
 }
 
 #[derive(Debug, Clone)]
@@ -32,8 +32,7 @@ pub struct PitchShift {
 }
 
 impl PhaseVocoderProcessor for PitchShift {
-	fn process(&self, bins: Vec<PhaseVocoderBin>) -> Vec<PhaseVocoderBin> {
-		let mut output_bins = vec![PhaseVocoderBin::default(); bins.len()];
+	fn process(&self, bins: Vec<PhaseVocoderBin>, output_bins: &mut Vec<PhaseVocoderBin>) {
 		for bin_index in 0..bins.len() {
 			let pitch_shifted_index = (bin_index as f64 * self.pitch_shift_ratio) as i64;
 			if 0 <= pitch_shifted_index && pitch_shifted_index < bins.len() as i64 {
@@ -42,15 +41,15 @@ impl PhaseVocoderProcessor for PitchShift {
 				output_bins[pitch_shifted_index].frequency = bins[bin_index].frequency * self.pitch_shift_ratio;
 			}
 		}
-		output_bins
 	}
 }
 
 pub struct IdentityProcessor();
 
 impl PhaseVocoderProcessor for IdentityProcessor {
-	fn process(&self, bins: Vec<PhaseVocoderBin>) -> Vec<PhaseVocoderBin> {
-		bins
+	fn process(&self, bins: Vec<PhaseVocoderBin>, output_bins: &mut Vec<PhaseVocoderBin>) {
+		use std::mem;
+		mem::replace(output_bins, bins);
 	}
 }
 
@@ -61,38 +60,42 @@ pub fn process_signal<T, P>(signal: &[Sample], sample_rate: SampleRate, overlap:
 	let phase_step = phase_step(frame_step_size, window);
 	let bin_width = bin_frequency::bin_width(sample_rate, bin_count);
 	let overlap_factor = overlap_factor(overlap, window);
-	let signal_frames = short_time_fourier::analysis::<T>(signal, overlap, window);
 
-	let mut previous_frame = vec![Bin(Polar::default()); bin_count];
-	let mut phase_vocoder_frames: Vec<Vec<PhaseVocoderBin>> = Vec::new();
-	for frame in signal_frames.into_iter() {
-		let mut phase_vocoder_bins = Vec::new();
-		for (bin_index, bin) in frame.into_iter().enumerate() {
-			let bin: Bin<Polar> = Bin(bin.take().into());
-			let previous_frame_bin = &previous_frame[bin_index];
-			let frequency = true_frequency(phase_step, bin_width, bin_index, &bin, previous_frame_bin);
-			phase_vocoder_bins.push(PhaseVocoderBin { magnitude: bin.magnitude, frequency });
-			previous_frame[bin_index] = bin;
-		}
-		phase_vocoder_frames.push(phase_vocoder_bins);
-	}
+	let matrix = short_time_fourier::analysis::<T>(signal, overlap, window);
+	let polar_frames: Vec<Vec<Bin<Polar>>> = matrix.par_iter().map(|frame| {
+		frame.iter().map(|bin| Bin(bin.take().into())).collect()
+	}).collect();
 
-	let processed_frames: Vec<_> = phase_vocoder_frames
-		.into_par_iter().map(|frame| processor.process(frame)).collect();
+	let phase_vocoder_frames: Vec<_> = (0..polar_frames.len()).into_par_iter().map(|frame_index| {
+		(0..bin_count).map(|bin_index| {
+			let bin: Bin<Polar> = polar_frames[frame_index][bin_index];
+			let previous_frame_bin = if frame_index > 0 {
+				polar_frames[frame_index - 1][bin_index]
+			} else {
+				Bin(Polar::default())
+			};
+			let frequency = true_frequency(phase_step, bin_width, bin_index, &bin, &previous_frame_bin);
+			PhaseVocoderBin { magnitude: bin.magnitude, frequency }
+		}).collect()
+	}).collect();
 
-	let mut bin_phase_accumulate = vec![0.0; bin_count];
-	let mut matrix: Vec<Vec<Bin<Rectangular>>> = Vec::new();
-	for frame in processed_frames.into_iter() {
-		let mut output_bins = Vec::new();
-		for (bin_index, bin) in frame.into_iter().enumerate() {
-			let true_frequency = bin.frequency;
+	let processed_frames: Vec<_> = phase_vocoder_frames.into_par_iter().map(|frame| {
+		let mut output_bins = vec![PhaseVocoderBin::default(); bin_count];
+		processor.process(frame, &mut output_bins);
+		output_bins
+	}).collect();
+
+	(0..bin_count).into_par_iter().for_each(|bin_index| {
+		let mut accumulate = 0.0;
+		for frame_index in 0..processed_frames.len() {
+			let bin = processed_frames[frame_index][bin_index];
 			let phase = original_phase(overlap_factor, phase_step, bin_width, bin_index,
-			                           true_frequency, bin_phase_accumulate[bin_index]);
-			output_bins.push(Bin(Polar { magnitude: bin.magnitude, phase }.into()));
-			bin_phase_accumulate[bin_index] = phase;
+			                           bin.frequency, accumulate);
+			let pointer = &matrix[frame_index][bin_index] as *const _ as *mut Bin<Rectangular>;
+			unsafe { *pointer = Bin(Polar { magnitude: bin.magnitude, phase }.into()); }
+			accumulate = phase;
 		}
-		matrix.push(output_bins);
-	}
+	});
 
 	let window = window.normalize_amplitude(overlap_factor);
 	short_time_fourier::synthesis::<T>(&matrix, overlap, &window)

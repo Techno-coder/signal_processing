@@ -14,7 +14,7 @@ fn main() {
 	use signal_processing::phase_vocoder;
 	let pitch_shifter = phase_vocoder::PitchShift { pitch_shift_ratio: 1.2 };
 	let window = window::Window::generate::<window::Sine>(512);
-	let signal = phase_vocoder::process_signal::<FastFourier, _>(&signal, spec.sample_rate.into(), 448, &window, pitch_shifter);
+	let signal = phase_vocoder::process_signal::<FastFourier, _>(&signal, spec.sample_rate.into(), 480, &window, pitch_shifter);
 	let output_samples: Vec<_> = signal.iter().map(|x| *x as i16).collect();
 
 	let mut writer = hound::WavWriter::create("pitch_shifted_file.wav", spec).unwrap();
