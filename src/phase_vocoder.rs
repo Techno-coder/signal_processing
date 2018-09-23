@@ -10,6 +10,7 @@ use crate::polar::Polar;
 use crate::rectangular::Rectangular;
 use crate::short_time_fourier;
 use crate::window::Window;
+use rayon::prelude::*;
 use std::f64::consts;
 use super::Hertz;
 use super::Sample;
@@ -21,16 +22,17 @@ pub struct PhaseVocoderBin {
 	pub frequency: Hertz,
 }
 
-pub trait PhaseVocoderProcessor {
-	fn process(&mut self, bins: Vec<PhaseVocoderBin>) -> Vec<PhaseVocoderBin>;
+pub trait PhaseVocoderProcessor: Send + Sync {
+	fn process(&self, bins: Vec<PhaseVocoderBin>) -> Vec<PhaseVocoderBin>;
 }
 
+#[derive(Debug, Clone)]
 pub struct PitchShift {
 	pub pitch_shift_ratio: f64,
 }
 
 impl PhaseVocoderProcessor for PitchShift {
-	fn process(&mut self, bins: Vec<PhaseVocoderBin>) -> Vec<PhaseVocoderBin> {
+	fn process(&self, bins: Vec<PhaseVocoderBin>) -> Vec<PhaseVocoderBin> {
 		let mut output_bins = vec![PhaseVocoderBin::default(); bins.len()];
 		for bin_index in 0..bins.len() {
 			let pitch_shifted_index = (bin_index as f64 * self.pitch_shift_ratio) as i64;
@@ -47,12 +49,12 @@ impl PhaseVocoderProcessor for PitchShift {
 pub struct IdentityProcessor();
 
 impl PhaseVocoderProcessor for IdentityProcessor {
-	fn process(&mut self, bins: Vec<PhaseVocoderBin>) -> Vec<PhaseVocoderBin> {
+	fn process(&self, bins: Vec<PhaseVocoderBin>) -> Vec<PhaseVocoderBin> {
 		bins
 	}
 }
 
-pub fn process_signal<T, P>(signal: &[Sample], sample_rate: SampleRate, overlap: usize, window: &Window, mut processor: P)
+pub fn process_signal<T, P>(signal: &[Sample], sample_rate: SampleRate, overlap: usize, window: &Window, processor: P)
                             -> Vec<Sample> where T: FourierTransform, P: PhaseVocoderProcessor {
 	let frame_step_size = window.width() - overlap;
 	let bin_count = fourier_transform::bin_count(window.width());
@@ -75,7 +77,9 @@ pub fn process_signal<T, P>(signal: &[Sample], sample_rate: SampleRate, overlap:
 		phase_vocoder_frames.push(phase_vocoder_bins);
 	}
 
-	let processed_frames: Vec<_> = phase_vocoder_frames.into_iter().map(|frame| processor.process(frame)).collect();
+	let processed_frames: Vec<_> = phase_vocoder_frames
+		.into_par_iter().map(|frame| processor.process(frame)).collect();
+
 	let mut bin_phase_accumulate = vec![0.0; bin_count];
 	let mut matrix: Vec<Vec<Bin<Rectangular>>> = Vec::new();
 	for frame in processed_frames.into_iter() {
@@ -138,12 +142,13 @@ pub fn map_into_circular_interval(value: f64) -> f64 {
 
 #[cfg(test)]
 mod tests {
-	use crate::window::Dirichlet;
+	use crate::window;
 	use super::*;
+	use test::Bencher;
 
 	#[test]
 	fn test_overlap_factor() {
-		let window = Window::generate::<Dirichlet>(512);
+		let window = Window::generate::<window::Dirichlet>(512);
 		assert_eq!(overlap_factor(256, &window), 2.0);
 		assert_eq!(overlap_factor(384, &window), 4.0);
 	}
@@ -151,7 +156,7 @@ mod tests {
 	#[test]
 	fn test_phase_step() {
 		let frame_step_size = 256;
-		let window = Window::generate::<Dirichlet>(512);
+		let window = Window::generate::<window::Dirichlet>(512);
 		assert_eq!(phase_step(frame_step_size, &window), consts::PI);
 	}
 
@@ -159,8 +164,7 @@ mod tests {
 	fn test_true_frequency() {
 		let sample_rate = 44100;
 		let overlap = 256;
-		let window = Window::generate::<Dirichlet>(512);
-		let overlap_factor = overlap_factor(overlap, &window);
+		let window = Window::generate::<window::Dirichlet>(512);
 
 		let frame_step_size = window.width() - overlap;
 		let bin_count = fourier_transform::bin_count(window.width());
@@ -184,7 +188,7 @@ mod tests {
 	fn test_original_phase() {
 		let sample_rate = 44100;
 		let overlap = 256;
-		let window = Window::generate::<Dirichlet>(512);
+		let window = Window::generate::<window::Dirichlet>(512);
 		let overlap_factor = overlap_factor(overlap, &window);
 
 		let frame_step_size = window.width() - overlap;
@@ -201,5 +205,18 @@ mod tests {
 		let true_frequency = 2500.0;
 		assert_eq!(original_phase(overlap_factor, phase_step, bin_width, 30,
 		                          true_frequency, accumulate_phase), 191.54073831888627);
+	}
+
+	#[bench]
+	#[cfg(feature = "fast_fourier")]
+	fn bench_pitch_shifter(bench: &mut Bencher) {
+		use crate::fast_fourier::FastFourier;
+		let sample_rate = 44100;
+		let overlap = 240;
+		let window = Window::generate::<window::Sine>(256);
+		let processor = PitchShift { pitch_shift_ratio: 1.5 };
+		let signal: Vec<_> = (0..22050).map(|x| x as f64).collect();
+		bench.iter(|| process_signal::<FastFourier, _>(&signal, sample_rate, overlap,
+		                                               &window, processor.clone()));
 	}
 }

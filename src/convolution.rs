@@ -41,6 +41,7 @@ mod tests {
 	use crate::fourier_transform::CorrelationFourier;
 	use crate::math;
 	use super::*;
+	use test::Bencher;
 
 	#[test]
 	fn test_convolve_signal() {
@@ -66,5 +67,14 @@ mod tests {
 		let convolution: Vec<f64> = convolve_fourier::<CorrelationFourier>(&signal, &impulse_response)
 			.into_iter().map(math::approximate).collect();
 		assert_eq!(convolution, vec![0.0, 1.0, 2.0 + 2.0, 4.0 + 3.0, 6.0 + 2.0, 4.0, 0.0])
+	}
+
+	#[bench]
+	#[cfg(feature = "fast_fourier")]
+	fn bench_convolve_fourier(bench: &mut Bencher) {
+		use crate::fast_fourier::FastFourier;
+		let signal: Vec<_> = (0..2048).map(|x| x as f64).collect();
+		let impulse_response: Vec<_> = (0..256).map(|x| x as f64).collect();
+		bench.iter(|| convolve_fourier::<FastFourier>(&signal, &impulse_response));
 	}
 }

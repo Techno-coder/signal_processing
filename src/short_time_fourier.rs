@@ -2,22 +2,23 @@ use crate::bin::Bin;
 use crate::fourier_transform::FourierTransform;
 use crate::rectangular::Rectangular;
 use crate::window::Window;
+use rayon::prelude::*;
 use super::Sample;
 
 pub fn analysis<T>(signal: &[Sample], overlap: usize, window: &Window)
                    -> Vec<Vec<Bin<Rectangular>>> where T: FourierTransform {
 	assert!(overlap < window.width());
 	let frame_spacing = window.width() - overlap;
-	let mut matrix = Vec::new();
+	let final_frame_start = signal.len() - window.width();
+	let loop_frame_count = final_frame_start / frame_spacing;
 
-	let mut frame_start = 0;
-	while frame_start + window.width() < signal.len() {
+	let mut matrix: Vec<_> = (0..loop_frame_count).into_par_iter().map(|frame_index| {
+		let frame_start = frame_index * frame_spacing;
 		let frame = &signal[frame_start..frame_start + window.width()];
-		matrix.push(T::analysis(&window.apply(frame)));
-		frame_start += frame_spacing;
-	}
+		T::analysis(&window.apply(frame))
+	}).collect();
 
-	let final_frame = window.apply(&signal[frame_start..]);
+	let final_frame = window.apply(&signal[final_frame_start..]);
 	matrix.push(T::analysis_extend(&final_frame, window.width()));
 	matrix
 }
@@ -25,7 +26,7 @@ pub fn analysis<T>(signal: &[Sample], overlap: usize, window: &Window)
 pub fn synthesis<T>(matrix: &Vec<Vec<Bin<Rectangular>>>, overlap: usize, window: &Window)
                     -> Vec<Sample> where T: FourierTransform {
 	assert!(overlap < window.width());
-	let frames: Vec<_> = matrix.iter().map(|frame| {
+	let frames: Vec<_> = matrix.par_iter().map(|frame| {
 		T::synthesis(&frame, window.width())
 	}).collect();
 	let frame_spacing = window.width() - overlap;
@@ -50,6 +51,7 @@ mod tests {
 	use crate::utility;
 	use crate::window;
 	use super::*;
+	use test::Bencher;
 
 	#[test]
 	fn test_analysis() {
@@ -91,5 +93,15 @@ mod tests {
 		let mut signal = synthesis::<CorrelationFourier>(&matrix, 50, &synthesis_window);
 		signal.iter_mut().for_each(|sample| *sample = sample.round());
 		assert_eq!(utility::find_peak(&signal), Some(&151.0));
+	}
+
+	#[bench]
+	#[cfg(feature = "fast_fourier")]
+	fn bench_analysis_and_synthesis(bench: &mut Bencher) {
+		use crate::fast_fourier::FastFourier;
+		let signal: Vec<_> = (0..8192).map(|x| x as f64).collect();
+		let window = Window::generate::<window::Sine>(256);
+		let overlap = 128;
+		bench.iter(|| synthesis::<FastFourier>(&analysis::<FastFourier>(&signal, overlap, &window), overlap, &window));
 	}
 }

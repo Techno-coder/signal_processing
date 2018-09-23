@@ -1,5 +1,5 @@
-use super::fourier_transform::FourierTransform;
 use super::fourier_transform;
+use super::fourier_transform::FourierTransform;
 use super::polar::Polar;
 use super::rectangular::Rectangular;
 use super::Sample;

@@ -1,6 +1,6 @@
-use crate::fourier_transform::FourierTransform;
-use crate::fourier_transform;
 use crate::bin::Bin;
+use crate::fourier_transform;
+use crate::fourier_transform::FourierTransform;
 use crate::rectangular::Rectangular;
 use crate::utility;
 use num_complex::Complex64;
@@ -42,6 +42,7 @@ mod tests {
 	use crate::correlation;
 	use crate::math;
 	use super::*;
+	use test::Bencher;
 
 	#[test]
 	fn test_synthesis() {
@@ -90,5 +91,11 @@ mod tests {
 		let target = [1.0, 2.0];
 		let correlation = correlation::correlation::<FastFourier>(&signal, &target);
 		assert_eq!(math::approximate(correlation), vec![2.0, 5.0, 12.0, 9.0, 4.0, 1.0].into_iter().sum());
+	}
+
+	#[bench]
+	fn bench_analysis_and_synthesis(bench: &mut Bencher) {
+		let signal: Vec<_> = (0..8192).map(|x| x as f64).collect();
+		bench.iter(|| FastFourier::synthesis(&FastFourier::analysis(&signal), 8192));
 	}
 }

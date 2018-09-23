@@ -1,13 +1,15 @@
 #![feature(self_struct_ctor)]
-
-#[cfg(test)]
-#[macro_use]
-extern crate pretty_assertions;
+#![feature(test)]
 
 #[cfg(feature = "fast_fourier")]
 extern crate num_complex;
+#[cfg(test)]
+#[macro_use]
+extern crate pretty_assertions;
+extern crate rayon;
 #[cfg(feature = "fast_fourier")]
 extern crate rustfft;
+extern crate test;
 
 #[macro_use]
 pub mod type_wrapper;
