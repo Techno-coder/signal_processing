@@ -1,7 +1,7 @@
 use crate::polar::Polar;
 use super::Sample;
 
-#[derive(Debug, PartialOrd, PartialEq, Copy, Clone)]
+#[derive(Debug, Default, PartialOrd, PartialEq, Copy, Clone)]
 pub struct Rectangular {
 	pub cosine: Sample,
 	pub sine: Sample,

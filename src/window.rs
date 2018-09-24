@@ -27,7 +27,7 @@ impl Window {
 	pub fn normalize_amplitude(&self, overlap_factor: f64) -> Window {
 		assert!(overlap_factor > 0.0);
 		Window {
-			window: self.window.iter().map(|x| x / overlap_factor).collect()
+			window: self.window.iter().map(|x| (2.0 * x) / overlap_factor).collect()
 		}
 	}
 

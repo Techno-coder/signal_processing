@@ -4,7 +4,7 @@ use std::f64;
 use std::f64::consts;
 use super::Sample;
 
-pub trait FourierTransform {
+pub trait FourierTransform: Send + Sync {
 	fn analysis_extend(signal: &[Sample], signal_length: usize) -> Vec<Bin<Rectangular>>;
 	fn synthesis(bins: &[Bin<Rectangular>], signal_length: usize) -> Vec<Sample>;
 

@@ -10,6 +10,7 @@ extern crate rayon;
 #[cfg(feature = "fast_fourier")]
 extern crate rustfft;
 extern crate test;
+extern crate num_cpus;
 
 #[macro_use]
 pub mod type_wrapper;

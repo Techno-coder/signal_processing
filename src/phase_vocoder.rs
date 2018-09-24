@@ -55,50 +55,68 @@ impl PhaseVocoderProcessor for IdentityProcessor {
 
 pub fn process_signal<T, P>(signal: &[Sample], sample_rate: SampleRate, overlap: usize, window: &Window, processor: P)
                             -> Vec<Sample> where T: FourierTransform, P: PhaseVocoderProcessor {
+	let chunk_size = ::num_cpus::get() * 64;
 	let frame_step_size = window.width() - overlap;
-	let bin_count = fourier_transform::bin_count(window.width());
 	let phase_step = phase_step(frame_step_size, window);
+	let bin_count = fourier_transform::bin_count(window.width());
 	let bin_width = bin_frequency::bin_width(sample_rate, bin_count);
 	let overlap_factor = overlap_factor(overlap, window);
+	let analyser = short_time_fourier::ShortTimeAnalyser::<T>::new(signal, overlap, window);
 
-	let matrix = short_time_fourier::analysis::<T>(signal, overlap, window);
-	let polar_frames: Vec<Vec<Bin<Polar>>> = matrix.par_iter().map(|frame| {
-		frame.iter().map(|bin| Bin(bin.take().into())).collect()
-	}).collect();
+	let mut bin_phase_accumulate = vec![0.0; bin_count];
+	let mut previous_chunk_frame = vec![Bin(Polar::default()); bin_count];
+	let window = &window.normalize_amplitude(overlap_factor);
+	let mut synthesiser = short_time_fourier::ShortTimeSynthesiser::<T>::new(overlap, window);
+	let mut samples = Vec::new();
 
-	let phase_vocoder_frames: Vec<_> = (0..polar_frames.len()).into_par_iter().map(|frame_index| {
-		(0..bin_count).map(|bin_index| {
-			let bin: Bin<Polar> = polar_frames[frame_index][bin_index];
-			let previous_frame_bin = if frame_index > 0 {
-				polar_frames[frame_index - 1][bin_index]
-			} else {
-				Bin(Polar::default())
-			};
-			let frequency = true_frequency(phase_step, bin_width, bin_index, &bin, &previous_frame_bin);
-			PhaseVocoderBin { magnitude: bin.magnitude, frequency }
-		}).collect()
-	}).collect();
+	let mut chunk_frame_index = 0;
+	while chunk_frame_index < analyser.total_frames() {
+		let chunk_end = usize::min(analyser.total_frames(), chunk_frame_index + chunk_size);
+		let index_end = chunk_end - chunk_frame_index;
+		debug_assert!(index_end <= chunk_size);
 
-	let processed_frames: Vec<_> = phase_vocoder_frames.into_par_iter().map(|frame| {
-		let mut output_bins = vec![PhaseVocoderBin::default(); bin_count];
-		processor.process(frame, &mut output_bins);
-		output_bins
-	}).collect();
+		let polar_frames: Vec<Vec<_>> = (chunk_frame_index..chunk_end).into_par_iter().map(|frame_index| {
+			let frame = analyser.calculate_frame(frame_index);
+			frame.iter().map(|bin| Bin(Polar::from(bin.take()))).collect()
+		}).collect();
 
-	(0..bin_count).into_par_iter().for_each(|bin_index| {
-		let mut accumulate = 0.0;
-		for frame_index in 0..processed_frames.len() {
-			let bin = processed_frames[frame_index][bin_index];
-			let phase = original_phase(overlap_factor, phase_step, bin_width, bin_index,
-			                           bin.frequency, accumulate);
-			let pointer = &matrix[frame_index][bin_index] as *const _ as *mut Bin<Rectangular>;
-			unsafe { *pointer = Bin(Polar { magnitude: bin.magnitude, phase }.into()); }
-			accumulate = phase;
-		}
-	});
+		let processed_frames: Vec<_> = (0..index_end).into_par_iter().map(|frame_index| {
+			let frame = (0..bin_count).map(|bin_index| {
+				let bin = polar_frames[frame_index][bin_index];
+				let previous_frame_bin = if frame_index > 0 {
+					polar_frames[frame_index - 1][bin_index]
+				} else {
+					previous_chunk_frame[bin_index]
+				};
+				let frequency = true_frequency(phase_step, bin_width, bin_index, &bin, &previous_frame_bin);
+				PhaseVocoderBin { magnitude: bin.magnitude, frequency }
+			}).collect();
 
-	let window = window.normalize_amplitude(overlap_factor);
-	short_time_fourier::synthesis::<T>(&matrix, overlap, &window)
+			let mut output_bins = vec![PhaseVocoderBin::default(); bin_count];
+			processor.process(frame, &mut output_bins);
+			output_bins
+		}).collect();
+
+		let frames = vec![vec![Bin(Rectangular::default()); bin_count]; index_end];
+		bin_phase_accumulate.par_iter_mut().enumerate().for_each(|(bin_index, accumulate)| {
+			for (frame_index, frame) in processed_frames.iter().enumerate() {
+				let bin = &frame[bin_index];
+				let phase = original_phase(overlap_factor, phase_step, bin_width, bin_index,
+				                           bin.frequency, *accumulate);
+				let pointer = &frames[frame_index][bin_index] as *const _ as *mut Bin<Rectangular>;
+				unsafe { *pointer = Bin(Polar { magnitude: bin.magnitude, phase }.into()); }
+				*accumulate = phase;
+			}
+		});
+		synthesiser.push_frames(&frames);
+
+		samples.append(&mut synthesiser.flush_ready());
+		previous_chunk_frame = polar_frames.last().unwrap().to_vec();
+		chunk_frame_index += chunk_size;
+	}
+
+	samples.append(&mut synthesiser.flush_all());
+	samples
 }
 
 pub fn overlap_factor(overlap: usize, window: &Window) -> f64 {
