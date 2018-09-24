@@ -34,16 +34,7 @@ impl From<Rectangular> for Polar {
 				-consts::FRAC_PI_2
 			}
 		} else {
-			let phase = (other.sine / other.cosine).atan();
-			if other.cosine.is_sign_negative() {
-				if other.sine.is_sign_negative() {
-					phase - consts::PI
-				} else {
-					phase + consts::PI
-				}
-			} else {
-				phase
-			}
+			other.sine.atan2(other.cosine)
 		};
 		Polar { magnitude, phase }
 	}
