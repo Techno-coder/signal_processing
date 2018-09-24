@@ -55,7 +55,7 @@ impl PhaseVocoderProcessor for IdentityProcessor {
 
 pub fn process_signal<T, P>(signal: &[Sample], sample_rate: SampleRate, overlap: usize, window: &Window, processor: P)
                             -> Vec<Sample> where T: FourierTransform, P: PhaseVocoderProcessor {
-	let chunk_size = ::num_cpus::get() * 64;
+	let chunk_size = ::num_cpus::get() * 128;
 	let frame_step_size = window.width() - overlap;
 	let phase_step = phase_step(frame_step_size, window);
 	let bin_count = fourier_transform::bin_count(window.width());
